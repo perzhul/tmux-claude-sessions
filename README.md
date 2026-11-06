@@ -32,5 +32,3 @@ set -g @plugin 'perzhul/tmux-claude-sessions'
 ## How it works
 
 The picker reads Claude Code's session logs in `~/.claude/projects` (or `$CLAUDE_CONFIG_DIR`) and caches what it needs in `~/.cache/tmux-claude-sessions.json`, so a 1.7 GB history lists in 0.01 s after the first 2 s run. Running sessions come from `~/.claude/sessions/<pid>.json`. Both are Claude Code internals, so an update can break the picker.
-
-`demo/make-screenshot.py` rebuilds the screenshot from made-up sessions.
