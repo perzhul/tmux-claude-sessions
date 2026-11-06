@@ -3,7 +3,7 @@
 
 Enter opens the session in a new tmux window: cd into the session's directory
 and run `<command> --resume <id>`. A session that is already running (green
-dot) is focused in its pane instead.
+dot) is focused in its pane instead. A red cross marks a deleted directory.
 
 Sessions live in <claude config dir>/projects/<dir>/<session-id>.jsonl and grow
 to gigabytes, so the per-file facts (cwd, title, first prompt) are cached by
@@ -136,7 +136,8 @@ def preview(path):
                 prompts.append(text)
     mtime = os.path.getmtime(path)
     print(f"\033[1m{info['title'] or Path(path).stem}\033[0m")
-    print(f"dir:     {info['cwd']}" + ("" if os.path.isdir(info["cwd"] or "") else "  (missing)"))
+    cwd = info["cwd"] or ""
+    print(f"dir:     {cwd.replace(str(Path.home()), '~', 1)}" + ("" if os.path.isdir(cwd) else "  (missing)"))
     print(f"branch:  {info['branch']}")
     print(f"updated: {time.strftime('%Y-%m-%d %H:%M', time.localtime(mtime))} ({ago(mtime)})")
     print(f"prompts: {len(prompts)}\n")
@@ -150,18 +151,21 @@ def main():
 
     home = str(Path.home())
     live = live_panes()
+    sessions = load_sessions()
+    width = min(38, max((len(i["cwd"].replace(home, "~", 1)) for _, _, i in sessions), default=0))
     rows = []
     # Fields: path, session id, cwd, title (hidden; read back on Enter), display line.
-    for mtime, path, info in load_sessions():
+    for mtime, path, info in sessions:
         cwd = info["cwd"]
         short = cwd.replace(home, "~", 1)
         label = info["title"] or info["first"]
         when = time.strftime("%m-%d %H:%M", time.localtime(mtime))
-        mark = "" if os.path.isdir(cwd) else " \033[31m(gone)\033[0m"
-        dot = "\033[32m●\033[0m" if path.stem in live else " "
+        # Status column: green dot for a running session, red cross for a deleted directory.
+        dot = ("\033[32m●\033[0m" if path.stem in live
+               else " " if os.path.isdir(cwd) else "\033[31m✗\033[0m")
         rows.append("\t".join([
             str(path), path.stem, cwd, info["title"].replace("\t", " "),
-            f"{dot} \033[33m{when}\033[0m  \033[34m{short[-38:]:<38}\033[0m  {label[:120]}{mark}",
+            f"{dot} \033[33m{when}\033[0m  \033[34m{short[-width:]:<{width}}\033[0m  {label[:120]}",
         ]))
 
     me = shlex.quote(os.path.abspath(__file__))
